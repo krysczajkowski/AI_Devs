@@ -4,11 +4,19 @@ import numexpr
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
+from langfuse import Langfuse
+from langfuse.decorators import observe
+from langfuse.openai import openai # OpenAI integration
 
 load_dotenv()
 
-# Uzyj tokenizer do liczenia tokenow - https://github.com/Microsoft/Tokenizer
-# Uzyj langfuse do monitorowania dzialania modelu - https://langfuse.com/
+# Set up Langfuse
+os.environ["LANGFUSE_PUBLIC_KEY"] = os.getenv('LANGFUSE_PUBLIC_KEY')
+os.environ["LANGFUSE_SECRET_KEY"] = os.getenv('LANGFUSE_SECRET_KEY')
+os.environ["OPENAI_API_KEY"] = os.getenv('OPENAI_KEY')
+
+langfuse = Langfuse()
+
 
 url = requests.get(f"https://centrala.ag3nts.org/data/{os.getenv('API_KEY')}/json.txt")
 source = json.loads(url.text)
@@ -17,6 +25,7 @@ data = source["test-data"]
 # Connect to OpenAI
 client = OpenAI(api_key=os.getenv('OPENAI_KEY'))
 
+@observe()
 def ask_gpt(question):
     system_prompt = """
     You will be asked a question. Your answer MUST be in english and MUST be as short as possible - your answer should only contain the answer, nothing else.

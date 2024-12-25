@@ -8,6 +8,7 @@ import mimetypes
 import html2text
 import json
 import concurrent.futures
+from io import BytesIO
 
 load_dotenv()
 
@@ -38,23 +39,13 @@ def audio2text(client, audio_url):
     response = requests.get(audio_url)
 
     if response.status_code == 200:
-        audio_file = response.content
-        audio_format = mimetypes.guess_extension(response.headers['Content-Type'])
-
-        # Save the audio file temporarily
-        temp_audio_path = f"temp_audio{audio_format}"
-        with open(temp_audio_path, 'wb') as f:
-            f.write(audio_file)
-
-        # Audio file transcription
-        with open(temp_audio_path, 'rb') as f:
-            transcription = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=f,
-            )
-
-        # Remove the temporary file
-        os.remove(temp_audio_path)
+        audio_file = BytesIO(response.content)
+        audio_file.name = "audio.mp3" # Crucial for the OpenAI API to recognize the file
+        
+        transcription = client.audio.transcriptions.create(
+            model="whisper-1",
+            file=audio_file
+        )
 
         return transcription.text
 

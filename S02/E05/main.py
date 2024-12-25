@@ -7,6 +7,7 @@ from openai import OpenAI
 import mimetypes
 import html2text
 import json
+import concurrent.futures
 
 load_dotenv()
 
@@ -61,6 +62,14 @@ def audio2text(client, audio_url):
         print(f"Failed to download audio file. Status code: {response.status_code}")
         return "Brak transkrypcji. Format pliku audio nie jest obsługiwany."
 
+# (Single) Image description generator
+def process_single_image(domain, item):
+    key, short_desc = item
+    if short_desc:
+        return (key, image_description(client, f"{domain}{key}", short_desc))
+    else:
+        return (key, image_description(client, f"{domain}{key}", "No description"))
+
 def generate_markdown_context(client):
     # Get website's html code
     url = 'https://centrala.ag3nts.org/dane/arxiv-draft.html'
@@ -88,12 +97,25 @@ def generate_markdown_context(client):
             else:
                 images[img['src']] = None  # No <figure>
 
-    # Use AI to create more accurate images descriptions
-    for key, value in images.items():
-        if value:
-            images[key] = image_description(client, f"{domain}{key}", value)
-        else:
-            images[key] = image_description(client, f"{domain}{key}", "No description")
+    # Create 5 concurrent threads to process images
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        # Attach tasks to threads 
+        future_to_image = {} # Store result of process_single_image function and image key
+        for key, value in images.items():
+            # Future - result of process_single_image function or status of its execution
+            future = executor.submit(process_single_image, domain, (key, value))
+            future_to_image[future] = key
+
+        # Get results  
+        for future in concurrent.futures.as_completed(future_to_image):
+            key = future_to_image[future]
+            try:
+                # future.result() zwraca krotkę (key, opis_obrazka)
+                key_from_future, desc = future.result()
+                images[key_from_future] = desc
+            except Exception as e:
+                print(f"Error generating an image description {key}: {e}")
+                images[key] = "Błąd w generowaniu opisu"
 
     # Find all images and replace them with their descriptions
     for img in soup.find_all("img"):

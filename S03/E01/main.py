@@ -4,11 +4,13 @@ from dotenv import load_dotenv
 from openai import OpenAI
 import json
 import requests
+import concurrent.futures
 
 load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
 
 # Function that generates keyword for a given file
-def generate_keywords(client, path, file_name):
+def generate_keywords(path, file_name):
     file_path = Path(path) / file_name
     file_content = file_path.read_text()
 
@@ -45,7 +47,7 @@ def generate_keywords(client, path, file_name):
         return []
 
 # Function that finds a person in a given keywords list
-def find_person_in_raport(client, raport_keywords):
+def find_person_in_raport(raport_keywords):
     system_prompt = """
     Znajdź osoby w raporcie na podstawie słów kluczowych. Jeśli znajdziesz osobę, to zwróć jej imię i nazwisko.
     Wyciągnij osobę z listy słów kluczowych. Przykład: ["Jan Kowalski"].
@@ -73,22 +75,50 @@ if __name__ == "__main__":
     raports_path = Path("/Users/a1/Desktop/PROJEKTY_MOJE/ai_devs/materialy_dodatkowe/pliki_z_fabryki")
     facts_path = Path("/Users/a1/Desktop/PROJEKTY_MOJE/ai_devs/materialy_dodatkowe/pliki_z_fabryki/facts")
 
-    client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
+    # Create 5 concurrent processes for generating keywords for facts
+    with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
+        future_to_fact = {}
+        # Assign futures to facts
+        for fact_path in facts_path.iterdir():
+            if fact_path.is_file() and fact_path.suffix.lower() == '.txt':
+                future = executor.submit(generate_keywords, facts_path, fact_path.name)
+                future_to_fact[future] = fact_path.name
 
-    # Generate keywords for each fact
-    for fact_path in facts_path.iterdir():
-        if fact_path.is_file() and fact_path.suffix.lower() == '.txt':
-            facts[fact_path.name] = generate_keywords(client, facts_path, fact_path.name)
-            # print(generate_keywords(client, facts_path, fact_path.name))
+        # Collect results
+        for future in concurrent.futures.as_completed(future_to_fact):
+            fact = future_to_fact[future]
+
+            try:
+                facts[fact] = future.result()
+            except Exception as e:
+                print(f"An error occurred: {e}")
+
+    # Create 5 concurrent processes for generating keywords for raports
+    with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
+        future_to_raport = {}
+        # Asign futures to raports
+        for raport_path in raports_path.iterdir():
+            if raport_path.is_file() and raport_path.suffix.lower() == '.txt':
+                future = executor.submit(generate_keywords, raports_path, raport_path.name)
+                future_to_raport[future] = raport_path.name
+
+        # Collect results
+        for future in concurrent.futures.as_completed(future_to_raport):
+            try:
+                raport = future_to_raport[future]
+                raports[raport] = future.result()
+
+            except Exception as e:
+                print(f"An error occurred: {e}")
 
     # Generate keywords for each raport 
     for raport_path in raports_path.iterdir():
         if raport_path.is_file() and raport_path.suffix.lower() == '.txt':
-            raports[raport_path.name] = generate_keywords(client, raports_path, raport_path.name)
+            raports[raport_path.name] = generate_keywords(raports_path, raport_path.name)
 
     # Update raports keywords based on facts
     for raport, keywords in raports.items():
-        persons = find_person_in_raport(client, keywords)
+        persons = find_person_in_raport(keywords)
         for person in persons:
             for fact, fact_keywords in facts.items():
                 if person in fact_keywords:

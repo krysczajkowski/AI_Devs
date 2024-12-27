@@ -112,11 +112,6 @@ if __name__ == "__main__":
             except Exception as e:
                 print(f"An error occurred: {e}")
 
-    # Generate keywords for each raport 
-    for raport_path in raports_path.iterdir():
-        if raport_path.is_file() and raport_path.suffix.lower() == '.txt':
-            raports[raport_path.name] = generate_keywords(raports_path, raport_path.name)
-
     # Update raports keywords based on facts
     for raport, keywords in raports.items():
         persons = find_person_in_raport(keywords)

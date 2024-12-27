@@ -17,19 +17,20 @@ def generate_keywords(path, file_name):
     system_prompt = """
     Wygeneruj słowa kluczowe na podstawie tekstu w formie mianownika (czyli np. “sportowiec”, a nie “sportowcem”, “sportowców” itp.). 
     Do not wrap the json codes in JSON markers
-    Słowa kluczowe przez ciebie wygenerowane będą następnie użyte do lokalizowania odpowiednich dokumentów przez AI.
+    Uwzględnij nazwy własne, technologie, języki programowania, pojęcia techniczne, wydarzenia, miejsca, osoby.
     Wyciągnij słowa kluczowe z nazwy, takie jak raport i jego numer oraz sektor. Przykład: ["raport 08", "sektor C4"].
     Słowa kluczowe muszą być napisane poprawną polszczyzną oraz nie powinny się powtarzać.
     Słowa kluczowe powinny być jako lista w formacie json, przykład:
     {
-        "keywords": ["sportowiec", "trening", "zdrowie"]
+        "keywords": ["frontend", "C++", "Python", "Adam Kowalski", "Szczecin", "AI Devs"]
     }
+    Wygenerowane słowa kluczowe będą używane do lokalizowania odpowiednich dokumentów przez AI.
     """
     if file_content.strip() == "entry deleted":
         return []
     
     completion = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Nazwa pliku: {file_name}\n Plik:{file_content}"}
@@ -59,7 +60,7 @@ def find_person_in_raport(raport_keywords):
     }
     """
     completion = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": f"Słowa kluczowe: {raport_keywords}"}

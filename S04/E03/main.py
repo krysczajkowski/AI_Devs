@@ -70,9 +70,6 @@ def find_urls(website_content):
         for element in parsed_response.links:
             result[element.url] = element.description
 
-        # Niech zwróci najbardziej prawdopodobny url
-        # Jako parametr niech dostanie liste juz odwiedzonych i wypierdol je z results dictionary przed wykonaniem drugiego zapytania
-        # W sumie te linki z np poprzednich stron tez wypadałoby łączyć 
         return result
 
 # Based on the user's question this function chooses next link to visit 
@@ -104,20 +101,20 @@ def analyze_website(url, question):
     flag = True
     iter = 0
     while flag:
-        print(f"------ iteracja numer: {iter} ------")
+        print(f"------ Iteration number: {iter} ------")
         visited_links.add(url)
         # Get website content 
         website_content = get_website_content(url)
         find_answer_result = find_answer(website_content, question)
 
         if find_answer_result['isAnswer']:
-            print("Koniec - znalazłem odpowiedź: ")
+            print("Finished - I found an answer: ")
             print(find_answer_result["answer"])
-            print(f"Moje rozumowanie: {find_answer_result['reasoning']}")
+            print(f"My reasoning: {find_answer_result['reasoning']}")
             return find_answer_result["answer"]
         else:
-            # Przeszukuje nastepne linki
-            print(f"W {url} nie znalazłem odpowiedzi, przeszukuje nastepne linki ...")
+            # Pick other link that will probably contain an answer 
+            print(f"{url} - no answer here, let me check out other links ...")
             new_possible_links = find_urls(website_content)
 
             # Merge old links descriptions and new ones
@@ -128,11 +125,11 @@ def analyze_website(url, question):
                 if el in possible_links:
                     del possible_links[el]
 
-            print("Mozliwosci ktore mam do wyboru:")
+            print("Links I can visit:")
             for key, value in possible_links.items():
                 print(f"{key}: {value}")
 
-            print("Najlepszy wybór to:")
+            print("The best choice is:")
             next_link = choose_link(possible_links, question)
             print(f"{next_link.url}, poniewaz: {next_link.reasoning}")
 
@@ -151,7 +148,7 @@ questions = request.json()
 results = dict()
 
 for id, question in questions.items():
-    print(f"Pytanie: {question}")
+    print(f"Question: {question}")
     results[id] = analyze_website("https://softo.ag3nts.org/", question)
 
 
